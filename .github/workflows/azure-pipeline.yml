@@ -1,65 +1,51 @@
-# Azure DevOps Pipeline - Simple Build and Test Example
-# This is for learning purposes
+name: Build and Test
 
-trigger:
-  branches:
-    include:
+on:
+  push:
+    branches:
       - main
-      - features/*
+      - 'features/**'
 
-pool:
-  vmImage: ubuntu-latest
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-variables:
-  buildFolder: 'build'
+      - name: Build Script
+        run: |
+          echo "Building..."
+          mkdir -p build
+          touch build/somefile.txt
+          echo "Build complete!"
+          ls -la build
 
-stages:
-  - stage: Build
-    displayName: "Build Stage"
-    jobs:
-      - job: CreateBuildFiles
-        displayName: "Create Build Files"
-        steps:
-          - script: |
-              echo "Building..."
-              mkdir -p $(buildFolder)
-              touch $(buildFolder)/somefile.txt
-              echo "Build complete!"
-              ls -la $(buildFolder)
-            displayName: "Build Script"
-          
-          # Publish the build folder as an artifact
-          - task: PublishBuildArtifacts@1
-            inputs:
-              PathtoPublish: '$(buildFolder)'
-              ArtifactName: 'build-artifacts'
-              publishLocation: 'Container'
-            displayName: "Publish Build Artifacts"
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: build
 
-  - stage: Test
-    displayName: "Test Stage"
-    dependsOn: Build
-    condition: succeeded()
-    jobs:
-      - job: TestBuildFiles
-        displayName: "Test Build Files"
-        steps:
-          # Download the artifacts from Build stage
-          - task: DownloadBuildArtifacts@1
-            inputs:
-              buildType: 'current'
-              downloadType: 'single'
-              artifactName: 'build-artifacts'
-              downloadPath: '$(System.ArtifactsDirectory)'
-            displayName: "Download Build Artifacts"
-          
-          - script: |
-              echo "Testing..."
-              if [ -f "$(System.ArtifactsDirectory)/build-artifacts/somefile.txt" ]; then
-                echo "✅ Test PASSED: File exists!"
-                exit 0
-              else
-                echo "❌ Test FAILED: File not found!"
-                exit 1
-              fi
-            displayName: "Test File Exists"
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+          path: artifacts
+
+      - name: Test File Exists
+        run: |
+          echo "Testing..."
+          if [ -f "artifacts/somefile.txt" ]; then
+            echo "✅ Test PASSED: File exists!"
+            exit 0
+          else
+            echo "❌ Test FAILED: File not found!"
+            exit 1
