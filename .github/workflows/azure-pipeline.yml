@@ -1,0 +1,52 @@
+name: Build and Test
+
+on:
+  push:
+    branches:
+      - main
+      - 'features/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Script
+        run: |
+          echo "Building..."
+          mkdir -p build
+          touch build/somefile.txt
+          echo "Build complete!"
+          ls -la build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: build
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: artifacts
+
+      - name: Test File Exists
+        run: |
+          echo "Testing..."
+          if [ -f "artifacts/somefile.txt" ]; then
+            echo "✅ Test PASSED: File exists!"
+            exit 0
+          else
+            echo "❌ Test FAILED: File not found!"
+            exit 1
+          fi
