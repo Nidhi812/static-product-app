@@ -1,0 +1,65 @@
+# Azure DevOps Pipeline - Simple Build and Test Example
+# This is for learning purposes
+
+trigger:
+  branches:
+    include:
+      - main
+      - features/*
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildFolder: 'build'
+
+stages:
+  - stage: Build
+    displayName: "Build Stage"
+    jobs:
+      - job: CreateBuildFiles
+        displayName: "Create Build Files"
+        steps:
+          - script: |
+              echo "Building..."
+              mkdir -p $(buildFolder)
+              touch $(buildFolder)/somefile.txt
+              echo "Build complete!"
+              ls -la $(buildFolder)
+            displayName: "Build Script"
+          
+          # Publish the build folder as an artifact
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(buildFolder)'
+              ArtifactName: 'build-artifacts'
+              publishLocation: 'Container'
+            displayName: "Publish Build Artifacts"
+
+  - stage: Test
+    displayName: "Test Stage"
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: TestBuildFiles
+        displayName: "Test Build Files"
+        steps:
+          # Download the artifacts from Build stage
+          - task: DownloadBuildArtifacts@1
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'build-artifacts'
+              downloadPath: '$(System.ArtifactsDirectory)'
+            displayName: "Download Build Artifacts"
+          
+          - script: |
+              echo "Testing..."
+              if [ -f "$(System.ArtifactsDirectory)/build-artifacts/somefile.txt" ]; then
+                echo "✅ Test PASSED: File exists!"
+                exit 0
+              else
+                echo "❌ Test FAILED: File not found!"
+                exit 1
+              fi
+            displayName: "Test File Exists"
